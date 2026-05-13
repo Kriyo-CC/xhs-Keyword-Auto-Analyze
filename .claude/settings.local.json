@@ -28,7 +28,8 @@
       "Bash(python -m unittest tests.test_llm_client -v)",
       "Bash(python -m unittest tests.test_openai_compat_llm_client -v)",
       "Bash(python -m unittest tests.test_llm_comment_analyzer_agent tests.test_llm_insight_agent tests.test_llm_sentiment_agent -v)",
-      "Bash(python -m unittest tests.test_report_quality_reviewer_agent -v)"
+      "Bash(python -m unittest tests.test_report_quality_reviewer_agent -v)",
+      "Bash(python -m pytest tests/ -q)"
     ]
   }
 }

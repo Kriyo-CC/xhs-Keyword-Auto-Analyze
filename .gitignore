@@ -30,6 +30,8 @@ data/private/
 *xhs_cookies.json
 *.state.json
 
+CLAUDE.md
+
 # 构建 / 分发
 dist/
 build/
