@@ -434,94 +434,94 @@ class ReportAgent:
             {buy_html}
         </div>"""
 
-        # ================================================================
-        # 8. 关键词相关内容选题建议
-        # ================================================================
-        if content_ideation_result and content_ideation_result.topic_suggestions:
-            # P2: 使用 ContentIdeationAgent 预生成的结果
-            sug_html = ""
-            for i, ts in enumerate(content_ideation_result.topic_suggestions, 1):
-                persp_tag = ""
-                if content_ideation_result.generation_mode == "multi_perspective":
-                    persp_tag = f' <span class="perspective-tag">[{ts.direction}]</span>'
-                sug_html += (
-                    f'<li><strong>{html.escape(ts.title)}</strong>{persp_tag}'
-                    f'<br><small>依据：{html.escape(ts.evidence)}</small>'
-                    f'<br><small>文案角度：{html.escape(ts.content_angle)}</small></li>\n'
-                )
-            sections_html += f"""
-            <div class="section">
-                <h2>关键词相关内容选题建议</h2>
-                <p class="section-desc">基于用户反馈和痛点洞察生成的内容选题方向（LLM 生成{'-多角度' if content_ideation_result.generation_mode == 'multi_perspective' else ''}）：</p>
-                <ul class="suggestion-list">{sug_html}</ul>
-            </div>"""
-        else:
-            # 回退：使用原有模板化方法
-            topic_suggestions = _build_topic_suggestions(topic, dataset, insight)
-            cluster_sugs = _cluster_topic_suggestions(clusters_data)
-            if cluster_sugs:
-                for csug in cluster_sugs:
-                    topic_suggestions.append(csug.get("direction", ""))
-            sug_html = ""
-            if topic_suggestions:
-                for i, sug in enumerate(topic_suggestions, 1):
-                    sug_html += f'<li>{html.escape(sug)}</li>\n'
-            else:
-                sug_html = '<li class="empty">基于当前数据暂无法生成文案方向建议</li>'
-            sections_html += f"""
-            <div class="section">
-                <h2>关键词相关内容选题建议</h2>
-                <p class="section-desc">基于用户反馈和痛点洞察生成的内容选题方向：</p>
-                <ul class="suggestion-list">{sug_html}</ul>
-            </div>"""
+        # # ================================================================
+        # # 8. 关键词相关内容选题建议
+        # # ================================================================
+        # if content_ideation_result and content_ideation_result.topic_suggestions:
+        #     # P2: 使用 ContentIdeationAgent 预生成的结果
+        #     sug_html = ""
+        #     for i, ts in enumerate(content_ideation_result.topic_suggestions, 1):
+        #         persp_tag = ""
+        #         if content_ideation_result.generation_mode == "multi_perspective":
+        #             persp_tag = f' <span class="perspective-tag">[{ts.direction}]</span>'
+        #         sug_html += (
+        #             f'<li><strong>{html.escape(ts.title)}</strong>{persp_tag}'
+        #             f'<br><small>依据：{html.escape(ts.evidence)}</small>'
+        #             f'<br><small>文案角度：{html.escape(ts.content_angle)}</small></li>\n'
+        #         )
+        #     sections_html += f"""
+        #     <div class="section">
+        #         <h2>关键词相关内容选题建议</h2>
+        #         <p class="section-desc">基于用户反馈和痛点洞察生成的内容选题方向（LLM 生成{'-多角度' if content_ideation_result.generation_mode == 'multi_perspective' else ''}）：</p>
+        #         <ul class="suggestion-list">{sug_html}</ul>
+        #     </div>"""
+        # else:
+        #     # 回退：使用原有模板化方法
+        #     topic_suggestions = _build_topic_suggestions(topic, dataset, insight)
+        #     cluster_sugs = _cluster_topic_suggestions(clusters_data)
+        #     if cluster_sugs:
+        #         for csug in cluster_sugs:
+        #             topic_suggestions.append(csug.get("direction", ""))
+        #     sug_html = ""
+        #     if topic_suggestions:
+        #         for i, sug in enumerate(topic_suggestions, 1):
+        #             sug_html += f'<li>{html.escape(sug)}</li>\n'
+        #     else:
+        #         sug_html = '<li class="empty">基于当前数据暂无法生成文案方向建议</li>'
+        #     sections_html += f"""
+        #     <div class="section">
+        #         <h2>关键词相关内容选题建议</h2>
+        #         <p class="section-desc">基于用户反馈和痛点洞察生成的内容选题方向：</p>
+        #         <ul class="suggestion-list">{sug_html}</ul>
+        #     </div>"""
 
-        # ================================================================
-        # 9. 热点选题与文案定制建议
-        # ================================================================
-        if content_ideation_result and content_ideation_result.custom_title_suggestions:
-            # P2: 使用 ContentIdeationAgent 预生成的结果
-            title_html = ""
-            for i, ts in enumerate(content_ideation_result.custom_title_suggestions, 1):
-                title_html += f"""
-                <div class="title-suggestion">
-                    <h4>选题 {i}：{html.escape(ts.direction)}</h4>
-                    <p><strong>推荐标题：</strong>{html.escape(ts.title)}</p>
-                    <p class="evidence"><strong>依据：</strong>{html.escape(ts.evidence)}</p>
-                    <p class="content-angle"><strong>内容切入：</strong>{html.escape(ts.content_angle)}</p>
-                </div>"""
-            sections_html += f"""
-            <div class="section">
-                <h2>热点选题与文案定制建议</h2>
-                <p class="section-desc">基于真实评论数据生成的定制化标题建议（LLM 生成{'-多角度' if content_ideation_result.generation_mode == 'multi_perspective' else ''}）：</p>
-                {title_html}
-            </div>"""
-        else:
-            # 回退：使用原有模板化方法
-            title_suggestions = _build_custom_title_suggestions(
-                topic, dataset, insight,
-                avoid_template=_avoid_template,
-            )
-            cluster_title_sugs = _cluster_topic_suggestions(clusters_data)
-            title_suggestions.extend(cluster_title_sugs)
-            title_html = ""
-            for i, ts in enumerate(title_suggestions, 1):
-                direction = ts.get("direction", "")
-                title = ts.get("title", "")
-                evidence = ts.get("evidence", "")
-                content_angle = ts.get("content_angle", "")
-                title_html += f"""
-                <div class="title-suggestion">
-                    <h4>选题 {i}：{html.escape(direction)}</h4>
-                    <p><strong>推荐标题：</strong>{html.escape(title)}</p>
-                    <p class="evidence"><strong>依据：</strong>{html.escape(evidence)}</p>
-                    <p class="content-angle"><strong>内容切入：</strong>{html.escape(content_angle)}</p>
-                </div>"""
-            sections_html += f"""
-            <div class="section">
-                <h2>热点选题与文案定制建议</h2>
-                <p class="section-desc">基于真实评论数据生成的定制化标题建议：</p>
-                {title_html}
-            </div>"""
+        # # ================================================================
+        # # 9. 热点选题与文案定制建议
+        # # ================================================================
+        # if content_ideation_result and content_ideation_result.custom_title_suggestions:
+        #     # P2: 使用 ContentIdeationAgent 预生成的结果
+        #     title_html = ""
+        #     for i, ts in enumerate(content_ideation_result.custom_title_suggestions, 1):
+        #         title_html += f"""
+        #         <div class="title-suggestion">
+        #             <h4>选题 {i}：{html.escape(ts.direction)}</h4>
+        #             <p><strong>推荐标题：</strong>{html.escape(ts.title)}</p>
+        #             <p class="evidence"><strong>依据：</strong>{html.escape(ts.evidence)}</p>
+        #             <p class="content-angle"><strong>内容切入：</strong>{html.escape(ts.content_angle)}</p>
+        #         </div>"""
+        #     sections_html += f"""
+        #     <div class="section">
+        #         <h2>热点选题与文案定制建议</h2>
+        #         <p class="section-desc">基于真实评论数据生成的定制化标题建议（LLM 生成{'-多角度' if content_ideation_result.generation_mode == 'multi_perspective' else ''}）：</p>
+        #         {title_html}
+        #     </div>"""
+        # else:
+        #     # 回退：使用原有模板化方法
+        #     title_suggestions = _build_custom_title_suggestions(
+        #         topic, dataset, insight,
+        #         avoid_template=_avoid_template,
+        #     )
+        #     cluster_title_sugs = _cluster_topic_suggestions(clusters_data)
+        #     title_suggestions.extend(cluster_title_sugs)
+        #     title_html = ""
+        #     for i, ts in enumerate(title_suggestions, 1):
+        #         direction = ts.get("direction", "")
+        #         title = ts.get("title", "")
+        #         evidence = ts.get("evidence", "")
+        #         content_angle = ts.get("content_angle", "")
+        #         title_html += f"""
+        #         <div class="title-suggestion">
+        #             <h4>选题 {i}：{html.escape(direction)}</h4>
+        #             <p><strong>推荐标题：</strong>{html.escape(title)}</p>
+        #             <p class="evidence"><strong>依据：</strong>{html.escape(evidence)}</p>
+        #             <p class="content-angle"><strong>内容切入：</strong>{html.escape(content_angle)}</p>
+        #         </div>"""
+        #     sections_html += f"""
+        #     <div class="section">
+        #         <h2>热点选题与文案定制建议</h2>
+        #         <p class="section-desc">基于真实评论数据生成的定制化标题建议：</p>
+        #         {title_html}
+        #     </div>"""
 
         # ================================================================
         # 新版内容 Agent 产物
@@ -546,21 +546,25 @@ class ReportAgent:
             </div>"""
 
         # -- LLM 2: 小红书"网感"文案 --
-        if copywriting_result and copywriting_result.has_content:
-            copywriting_html = _render_copywriting_html(copywriting_result)
+        if copywriting_result and copywriting_result.post_content:
             sections_html += f"""
             <div class="section">
                 <h2>小红书"网感"文案（LLM 生成）</h2>
-                {copywriting_html}
+                <p class="section-desc">基于选题 <strong>{html.escape(copywriting_result.selected_topic_title)}</strong> 和真实用户评论生成的可直接发布的小红书文案：</p>
+                <div class="evidence-card" style="white-space:pre-wrap;line-height:1.8;">
+                    {html.escape(copywriting_result.post_content)}
+                </div>
             </div>"""
 
         # -- LLM 3: 产品口碑与竞品情报分析 --
-        if market_intelligence_result and market_intelligence_result.has_content:
-            market_html = _render_market_intel_html(market_intelligence_result)
+        if market_intelligence_result and market_intelligence_result.report_markdown:
             sections_html += f"""
             <div class="section">
                 <h2>产品口碑与竞品情报分析（LLM 生成）</h2>
-                {market_html}
+                <p class="section-desc">基于评论区洞察和用户反馈的商业情报报告：</p>
+                <div class="evidence-card" style="white-space:pre-wrap;line-height:1.8;">
+                    {html.escape(market_intelligence_result.report_markdown)}
+                </div>
             </div>"""
 
         # ================================================================
@@ -716,69 +720,6 @@ body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetic
 .cluster-quote {{ color:#666; font-size:0.85em; font-style:italic; padding:4px 8px; border-left:3px solid #27ae60; margin:4px 0; width:100%; }}
 .empty {{ color:#999; font-style:italic; }}
 .footer {{ text-align:center; color:#999; font-size:0.82em; padding:20px 0; border-top:1px solid #eee; margin-top:20px; }}
-
-/* ---------- LLM 2 文案卡片 ---------- */
-.copy-title {{ background:linear-gradient(135deg,#fef3e2,#fdebd0); border-left:5px solid #e67e22; padding:16px 20px; border-radius:6px; font-size:1.2em; font-weight:700; color:#2c3e50; margin-bottom:16px; line-height:1.6; }}
-.copy-label {{ display:inline-block; font-size:0.78em; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }}
-.copy-opening {{ background:#f8f9fb; border-radius:8px; padding:16px 20px; margin-bottom:16px; }}
-.copy-opening p {{ margin-top:6px; color:#555; line-height:1.8; font-size:0.95em; }}
-.copy-pp-list {{ margin-bottom:16px; }}
-.copy-pp-item {{ display:flex; align-items:flex-start; gap:10px; padding:10px 14px; margin:6px 0; background:#fff; border:1px solid #eee; border-radius:8px; transition:box-shadow 0.15s; }}
-.copy-pp-item:hover {{ box-shadow:0 2px 8px rgba(0,0,0,0.06); }}
-.pp-icon {{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; font-size:0.75em; font-weight:700; flex-shrink:0; }}
-.pp-pain {{ flex:1; color:#c0392b; font-size:0.92em; }}
-.pp-pain .pp-icon {{ background:#ffeef0; color:#c0392b; }}
-.pp-arrow {{ color:#ccc; font-weight:700; font-size:1.1em; flex-shrink:0; padding-top:2px; }}
-.pp-solution {{ flex:1; color:#27ae60; font-size:0.92em; }}
-.pp-solution .pp-icon {{ background:#e8f8ef; color:#27ae60; }}
-.copy-drygoods {{ background:#f0f7ff; border-radius:8px; padding:16px 20px; margin-bottom:16px; }}
-.copy-dg-list {{ margin:8px 0 0 0; padding-left:20px; list-style:none; }}
-.copy-dg-list li {{ padding:4px 0; color:#2c3e50; font-size:0.93em; line-height:1.7; }}
-.copy-dg-list li::before {{ content:"✦ "; color:#667eea; font-size:0.8em; }}
-.copy-section-block {{ margin-bottom:14px; }}
-.copy-sec-heading {{ font-size:1em; color:#667eea; margin-bottom:4px; }}
-.copy-sec-content {{ color:#555; font-size:0.93em; line-height:1.7; }}
-.copy-cta {{ background:linear-gradient(135deg,#eef2ff,#e8ecff); border-radius:8px; padding:16px 20px; margin-bottom:16px; border:1px dashed #667eea; }}
-.copy-cta p {{ margin-top:6px; color:#4a5568; font-size:0.95em; line-height:1.7; font-weight:500; }}
-.copy-hashtags {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }}
-.copy-tag {{ background:#764ba2; color:#fff; padding:4px 12px; border-radius:16px; font-size:0.85em; font-weight:500; }}
-
-/* ---------- LLM 3 商业情报卡片 ---------- */
-.mi-summary {{ background:linear-gradient(135deg,#eef2ff,#f0e8ff); border-radius:8px; padding:18px 22px; margin-bottom:20px; border-left:5px solid #667eea; }}
-.mi-summary h3 {{ color:#667eea; margin-top:0; margin-bottom:8px; font-size:1.05em; }}
-.mi-summary p {{ color:#4a5568; line-height:1.8; font-size:0.95em; }}
-.mi-section {{ margin-bottom:20px; }}
-.mi-section h3 {{ color:#2c3e50; font-size:1.05em; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #eee; }}
-.mi-table-wrap {{ overflow-x:auto; }}
-.mi-table {{ width:100%; border-collapse:collapse; font-size:0.92em; }}
-.mi-table th {{ background:#f0f2f5; padding:10px 12px; text-align:left; font-weight:600; color:#555; white-space:nowrap; }}
-.mi-table td {{ padding:10px 12px; border-bottom:1px solid #eee; vertical-align:top; }}
-.mi-table .mi-sev-col {{ width:80px; text-align:center; }}
-.mi-sev {{ display:inline-block; padding:2px 10px; border-radius:12px; font-size:0.82em; font-weight:600; }}
-.mi-sev-high {{ background:#ffeef0; color:#c0392b; }}
-.mi-sev-mid {{ background:#fef3e2; color:#b8860b; }}
-.mi-sev-low {{ background:#e8f8ef; color:#27ae60; }}
-.mi-voice {{ color:#888; font-size:0.88em; font-style:italic; }}
-.mi-comp-grid {{ display:flex; flex-wrap:wrap; gap:10px; }}
-.mi-comp-card {{ background:#f8f9fb; border:1px solid #e8ecf0; border-radius:8px; padding:14px 16px; flex:1 1 200px; max-width:300px; }}
-.mi-comp-header {{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }}
-.mi-comp-name {{ font-weight:600; color:#2c3e50; }}
-.mi-comp-type {{ padding:1px 8px; border-radius:10px; font-size:0.78em; font-weight:600; }}
-.mi-comp-type.brand {{ background:#eef2ff; color:#667eea; }}
-.mi-comp-type.category {{ background:#e8f8ef; color:#27ae60; }}
-.mi-comp-context {{ color:#666; font-size:0.88em; line-height:1.5; }}
-.mi-biz-list {{ display:flex; flex-direction:column; gap:12px; }}
-.mi-biz-card {{ display:flex; align-items:flex-start; gap:14px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px; transition:box-shadow 0.15s; }}
-.mi-biz-card:hover {{ box-shadow:0 2px 10px rgba(0,0,0,0.06); }}
-.mi-biz-rank {{ background:#667eea; color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9em; flex-shrink:0; }}
-.mi-biz-body {{ flex:1; }}
-.mi-biz-header {{ display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }}
-.mi-biz-category {{ font-weight:600; color:#2c3e50; font-size:1em; }}
-.mi-conf {{ padding:1px 8px; border-radius:10px; font-size:0.78em; font-weight:600; }}
-.mi-conf-high {{ background:#e8f8ef; color:#27ae60; }}
-.mi-conf-mid {{ background:#fef3e2; color:#b8860b; }}
-.mi-conf-low {{ background:#ffeef0; color:#c0392b; }}
-.mi-biz-rationale {{ color:#555; font-size:0.9em; line-height:1.6; }}
 @media (max-width:600px) {{ .header h1 {{ font-size:1.4em; }} .section {{ padding:16px; }} }}
 </style>
 </head>
@@ -1486,203 +1427,3 @@ def _cluster_topic_suggestions(clusters_data: Optional[dict]) -> list[dict]:
             "content_angle": f"围绕「{topic}」展开深度内容，该主题在评论区形成了{count}条相关讨论，表明用户对此有较高关注度",
         })
     return suggestions
-
-
-# ============================================================================
-# LLM 2 / LLM 3 结构化 HTML 渲染
-# ============================================================================
-
-
-def _render_copywriting_html(result: CopywritingResult) -> str:
-    """将 CopywritingResult 渲染为结构化 HTML 卡片。"""
-    parts: list[str] = []
-
-    # 选题标题
-    if result.selected_topic_title:
-        parts.append(
-            f'<p class="section-desc">基于选题 <strong>'
-            f'{html.escape(result.selected_topic_title)}</strong>'
-            f' 和真实用户评论生成的小红书文案：</p>'
-        )
-
-    # 标题
-    if result.title:
-        parts.append(
-            f'<div class="copy-title">{html.escape(result.title)}</div>'
-        )
-
-    # 引入钩子
-    if result.opening_hook:
-        parts.append(
-            f'<div class="copy-opening">'
-            f'<span class="copy-label">引入钩子</span>'
-            f'<p>{html.escape(result.opening_hook)}</p>'
-            f'</div>'
-        )
-
-    # 痛点 × 方案对照
-    if result.pain_point_solutions:
-        pp_html = '<div class="copy-pp-list">'
-        pp_html += '<span class="copy-label">痛点与解决方案</span>'
-        for item in result.pain_point_solutions:
-            pp_html += (
-                f'<div class="copy-pp-item">'
-                f'<span class="pp-pain">'
-                f'<span class="pp-icon">!</span> '
-                f'{html.escape(item.pain_point)}</span>'
-                f'<span class="pp-arrow">→</span>'
-                f'<span class="pp-solution">'
-                f'<span class="pp-icon">✓</span> '
-                f'{html.escape(item.solution)}</span>'
-                f'</div>'
-            )
-        pp_html += '</div>'
-        parts.append(pp_html)
-
-    # 干货要点
-    if result.dry_goods:
-        dg_html = '<div class="copy-drygoods">'
-        dg_html += '<span class="copy-label">干货要点</span>'
-        dg_html += '<ul class="copy-dg-list">'
-        for item in result.dry_goods:
-            dg_html += f'<li>{html.escape(item)}</li>'
-        dg_html += '</ul></div>'
-        parts.append(dg_html)
-
-    # 正文小节（灵活分段）
-    if result.body_sections:
-        for sec in result.body_sections:
-            heading_html = (
-                f'<h4 class="copy-sec-heading">{html.escape(sec.heading)}</h4>'
-                if sec.heading else ""
-            )
-            content_html = (
-                f'<p class="copy-sec-content">{html.escape(sec.content)}</p>'
-                if sec.content else ""
-            )
-            if heading_html or content_html:
-                parts.append(
-                    f'<div class="copy-section-block">{heading_html}{content_html}</div>'
-                )
-
-    # 互动钩子
-    if result.call_to_action:
-        parts.append(
-            f'<div class="copy-cta">'
-            f'<span class="copy-label">互动引导</span>'
-            f'<p>{html.escape(result.call_to_action)}</p>'
-            f'</div>'
-        )
-
-    # 话题标签
-    if result.hashtags:
-        tags_html = " ".join(
-            f'<span class="copy-tag">#{html.escape(t)}</span>'
-            for t in result.hashtags
-        )
-        parts.append(
-            f'<div class="copy-hashtags">{tags_html}</div>'
-        )
-
-    # 退化：LLM 没有返回任何结构化内容
-    if not parts:
-        return '<p class="empty">LLM 暂未生成有效文案内容</p>'
-
-    return "\n".join(parts)
-
-
-def _render_market_intel_html(result: MarketIntelligenceResult) -> str:
-    """将 MarketIntelligenceResult 渲染为结构化 HTML 卡片。"""
-    parts: list[str] = []
-
-    # 报告摘要
-    if result.executive_summary:
-        parts.append(
-            f'<div class="mi-summary">'
-            f'<h3>报告摘要</h3>'
-            f'<p>{html.escape(result.executive_summary)}</p>'
-            f'</div>'
-        )
-
-    # 产品痛点分析
-    if result.pain_point_analysis:
-        pp_html = '<div class="mi-section">'
-        pp_html += '<h3>产品痛点分析</h3>'
-        pp_html += '<div class="mi-table-wrap"><table class="mi-table">'
-        pp_html += (
-            '<thead><tr>'
-            '<th>痛点</th><th class="mi-sev-col">严重程度</th><th>用户原声</th>'
-            '</tr></thead>'
-        )
-        pp_html += '<tbody>'
-        for item in result.pain_point_analysis:
-            sev_class = (
-                "mi-sev-high" if item.severity == "高"
-                else "mi-sev-mid" if item.severity == "中"
-                else "mi-sev-low"
-            )
-            pp_html += (
-                f'<tr>'
-                f'<td>{html.escape(item.issue)}</td>'
-                f'<td class="mi-sev-col"><span class="mi-sev {sev_class}">'
-                f'{html.escape(item.severity)}</span></td>'
-                f'<td class="mi-voice">{html.escape(item.user_voice)}</td>'
-                f'</tr>'
-            )
-        pp_html += '</tbody></table></div></div>'
-        parts.append(pp_html)
-
-    # 热门替代品 / 竞品词云
-    if result.competitor_landscape:
-        comp_html = '<div class="mi-section">'
-        comp_html += '<h3>热门平替 / 竞品词云</h3>'
-        comp_html += '<div class="mi-comp-grid">'
-        for item in result.competitor_landscape:
-            type_badge = (
-                '<span class="mi-comp-type brand">品牌</span>'
-                if item.item_type == "品牌"
-                else '<span class="mi-comp-type category">品类</span>'
-            )
-            comp_html += (
-                f'<div class="mi-comp-card">'
-                f'<div class="mi-comp-header">'
-                f'<span class="mi-comp-name">{html.escape(item.name)}</span>'
-                f'{type_badge}'
-                f'</div>'
-                f'<p class="mi-comp-context">{html.escape(item.context)}</p>'
-                f'</div>'
-            )
-        comp_html += '</div></div>'
-        parts.append(comp_html)
-
-    # 商业变现 / 选品建议
-    if result.business_recommendations:
-        biz_html = '<div class="mi-section">'
-        biz_html += '<h3>商业变现 / 选品建议</h3>'
-        biz_html += '<div class="mi-biz-list">'
-        for idx, item in enumerate(result.business_recommendations, 1):
-            conf_class = (
-                "mi-conf-high" if item.confidence == "高"
-                else "mi-conf-mid" if item.confidence == "中"
-                else "mi-conf-low"
-            )
-            biz_html += (
-                f'<div class="mi-biz-card">'
-                f'<div class="mi-biz-rank">{idx}</div>'
-                f'<div class="mi-biz-body">'
-                f'<div class="mi-biz-header">'
-                f'<span class="mi-biz-category">{html.escape(item.category)}</span>'
-                f'<span class="mi-conf {conf_class}">信心：{html.escape(item.confidence)}</span>'
-                f'</div>'
-                f'<p class="mi-biz-rationale">{html.escape(item.rationale)}</p>'
-                f'</div>'
-                f'</div>'
-            )
-        biz_html += '</div></div>'
-        parts.append(biz_html)
-
-    # 退化：LLM 没有返回任何结构化内容
-    if not parts:
-        return '<p class="empty">LLM 暂未生成有效的商业情报</p>'
-
-    return "\n".join(parts)
