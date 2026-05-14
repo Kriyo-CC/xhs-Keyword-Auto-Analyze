@@ -40,6 +40,11 @@ from src.schemas import (
     ScoreCard,
 )
 from src.schemas.content_ideation import ContentIdeationResult
+from src.schemas.new_content_agents import (
+    CopywritingResult,
+    IdeationResult,
+    MarketIntelligenceResult,
+)
 from src.utils import AppPaths, get_app_paths
 
 logger = logging.getLogger(__name__)
@@ -113,6 +118,9 @@ class ReportAgent:
         revision_instructions: Optional[list[str]] = None,
         comment_clusters_data: Optional[dict] = None,
         content_ideation_result: Optional[ContentIdeationResult] = None,
+        ideation_result: Optional[IdeationResult] = None,
+        copywriting_result: Optional[CopywritingResult] = None,
+        market_intelligence_result: Optional[MarketIntelligenceResult] = None,
     ) -> ReportResult:
         """生成 HTML 报告并持久化。
 
@@ -126,6 +134,9 @@ class ReportAgent:
             comment_clusters_data: P6.0 评论聚类数据（dict）。为 None 时自动从文件读取。
             content_ideation_result: P2 新增，ContentIdeationAgent 预生成的内容选题建议。
                 不为 None 时替代内部 _build_topic_suggestions / _build_custom_title_suggestions。
+            ideation_result: 新版 LLM 1 爆款选题策划结果。
+            copywriting_result: 新版 LLM 2 小红书文案生成结果。
+            market_intelligence_result: 新版 LLM 3 商业情报报告。
 
         返回：
             ReportResult（含成功状态和文件路径）
@@ -151,6 +162,9 @@ class ReportAgent:
             revision_instructions=revision_instructions,
             clusters_data=clusters_data,
             content_ideation_result=content_ideation_result,
+            ideation_result=ideation_result,
+            copywriting_result=copywriting_result,
+            market_intelligence_result=market_intelligence_result,
         )
         self._persist(html_content)
 
@@ -171,14 +185,19 @@ class ReportAgent:
         revision_instructions: Optional[list[str]] = None,
         clusters_data: Optional[dict] = None,
         content_ideation_result: Optional[ContentIdeationResult] = None,
+        ideation_result: Optional[IdeationResult] = None,
+        copywriting_result: Optional[CopywritingResult] = None,
+        market_intelligence_result: Optional[MarketIntelligenceResult] = None,
     ) -> str:
-        """组装完整 HTML 报告（12 章节结构）。
+        """组装完整 HTML 报告。
 
         参数：
             revision_instructions: 质量评审后的修订指令，
                 用于调整内容块文案而不修改 insight/scorecard 数据。
             content_ideation_result: P2 新增，预生成的内容选题建议。
-                不为 None 时替代内部 _build_topic_suggestions / _build_custom_title_suggestions。
+            ideation_result: 新版 LLM 1 爆款选题策划结果。
+            copywriting_result: 新版 LLM 2 小红书文案生成结果。
+            market_intelligence_result: 新版 LLM 3 商业情报报告。
         """
         # 优先使用传入的主题词/产品方向，否则从第一条帖子推断
         if not topic or not product_direction:
@@ -505,6 +524,46 @@ class ReportAgent:
             </div>"""
 
         # ================================================================
+        # 新版内容 Agent 产物
+        # ================================================================
+
+        # -- LLM 1: 爆款选题与内容策划 --
+        if ideation_result and ideation_result.topic_ideas:
+            ideas_html = ""
+            for i, idea in enumerate(ideation_result.topic_ideas, 1):
+                ideas_html += f"""
+                <div class="title-suggestion">
+                    <h4>选题 {i}：{html.escape(idea.topic_title)}</h4>
+                    <p><strong>目标人群：</strong>{html.escape(idea.target_audience)}</p>
+                    <p><strong>核心抓手：</strong>{html.escape(idea.core_hook)}</p>
+                    <p class="content-angle"><strong>内容大纲：</strong>{html.escape(idea.content_framework)}</p>
+                </div>"""
+            sections_html += f"""
+            <div class="section">
+                <h2>爆款选题与内容策划（LLM 生成）</h2>
+                <p class="section-desc">基于用户洞察和历史爆款数据，由 AI 内容总监策划的高爆款潜力选题：</p>
+                {ideas_html}
+            </div>"""
+
+        # -- LLM 2: 小红书"网感"文案 --
+        if copywriting_result and copywriting_result.has_content:
+            copywriting_html = _render_copywriting_html(copywriting_result)
+            sections_html += f"""
+            <div class="section">
+                <h2>小红书"网感"文案（LLM 生成）</h2>
+                {copywriting_html}
+            </div>"""
+
+        # -- LLM 3: 产品口碑与竞品情报分析 --
+        if market_intelligence_result and market_intelligence_result.has_content:
+            market_html = _render_market_intel_html(market_intelligence_result)
+            sections_html += f"""
+            <div class="section">
+                <h2>产品口碑与竞品情报分析（LLM 生成）</h2>
+                {market_html}
+            </div>"""
+
+        # ================================================================
         # 10. 代表评论证据
         # ================================================================
         ev_html = ""
@@ -657,6 +716,69 @@ body {{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetic
 .cluster-quote {{ color:#666; font-size:0.85em; font-style:italic; padding:4px 8px; border-left:3px solid #27ae60; margin:4px 0; width:100%; }}
 .empty {{ color:#999; font-style:italic; }}
 .footer {{ text-align:center; color:#999; font-size:0.82em; padding:20px 0; border-top:1px solid #eee; margin-top:20px; }}
+
+/* ---------- LLM 2 文案卡片 ---------- */
+.copy-title {{ background:linear-gradient(135deg,#fef3e2,#fdebd0); border-left:5px solid #e67e22; padding:16px 20px; border-radius:6px; font-size:1.2em; font-weight:700; color:#2c3e50; margin-bottom:16px; line-height:1.6; }}
+.copy-label {{ display:inline-block; font-size:0.78em; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }}
+.copy-opening {{ background:#f8f9fb; border-radius:8px; padding:16px 20px; margin-bottom:16px; }}
+.copy-opening p {{ margin-top:6px; color:#555; line-height:1.8; font-size:0.95em; }}
+.copy-pp-list {{ margin-bottom:16px; }}
+.copy-pp-item {{ display:flex; align-items:flex-start; gap:10px; padding:10px 14px; margin:6px 0; background:#fff; border:1px solid #eee; border-radius:8px; transition:box-shadow 0.15s; }}
+.copy-pp-item:hover {{ box-shadow:0 2px 8px rgba(0,0,0,0.06); }}
+.pp-icon {{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; font-size:0.75em; font-weight:700; flex-shrink:0; }}
+.pp-pain {{ flex:1; color:#c0392b; font-size:0.92em; }}
+.pp-pain .pp-icon {{ background:#ffeef0; color:#c0392b; }}
+.pp-arrow {{ color:#ccc; font-weight:700; font-size:1.1em; flex-shrink:0; padding-top:2px; }}
+.pp-solution {{ flex:1; color:#27ae60; font-size:0.92em; }}
+.pp-solution .pp-icon {{ background:#e8f8ef; color:#27ae60; }}
+.copy-drygoods {{ background:#f0f7ff; border-radius:8px; padding:16px 20px; margin-bottom:16px; }}
+.copy-dg-list {{ margin:8px 0 0 0; padding-left:20px; list-style:none; }}
+.copy-dg-list li {{ padding:4px 0; color:#2c3e50; font-size:0.93em; line-height:1.7; }}
+.copy-dg-list li::before {{ content:"✦ "; color:#667eea; font-size:0.8em; }}
+.copy-section-block {{ margin-bottom:14px; }}
+.copy-sec-heading {{ font-size:1em; color:#667eea; margin-bottom:4px; }}
+.copy-sec-content {{ color:#555; font-size:0.93em; line-height:1.7; }}
+.copy-cta {{ background:linear-gradient(135deg,#eef2ff,#e8ecff); border-radius:8px; padding:16px 20px; margin-bottom:16px; border:1px dashed #667eea; }}
+.copy-cta p {{ margin-top:6px; color:#4a5568; font-size:0.95em; line-height:1.7; font-weight:500; }}
+.copy-hashtags {{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }}
+.copy-tag {{ background:#764ba2; color:#fff; padding:4px 12px; border-radius:16px; font-size:0.85em; font-weight:500; }}
+
+/* ---------- LLM 3 商业情报卡片 ---------- */
+.mi-summary {{ background:linear-gradient(135deg,#eef2ff,#f0e8ff); border-radius:8px; padding:18px 22px; margin-bottom:20px; border-left:5px solid #667eea; }}
+.mi-summary h3 {{ color:#667eea; margin-top:0; margin-bottom:8px; font-size:1.05em; }}
+.mi-summary p {{ color:#4a5568; line-height:1.8; font-size:0.95em; }}
+.mi-section {{ margin-bottom:20px; }}
+.mi-section h3 {{ color:#2c3e50; font-size:1.05em; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #eee; }}
+.mi-table-wrap {{ overflow-x:auto; }}
+.mi-table {{ width:100%; border-collapse:collapse; font-size:0.92em; }}
+.mi-table th {{ background:#f0f2f5; padding:10px 12px; text-align:left; font-weight:600; color:#555; white-space:nowrap; }}
+.mi-table td {{ padding:10px 12px; border-bottom:1px solid #eee; vertical-align:top; }}
+.mi-table .mi-sev-col {{ width:80px; text-align:center; }}
+.mi-sev {{ display:inline-block; padding:2px 10px; border-radius:12px; font-size:0.82em; font-weight:600; }}
+.mi-sev-high {{ background:#ffeef0; color:#c0392b; }}
+.mi-sev-mid {{ background:#fef3e2; color:#b8860b; }}
+.mi-sev-low {{ background:#e8f8ef; color:#27ae60; }}
+.mi-voice {{ color:#888; font-size:0.88em; font-style:italic; }}
+.mi-comp-grid {{ display:flex; flex-wrap:wrap; gap:10px; }}
+.mi-comp-card {{ background:#f8f9fb; border:1px solid #e8ecf0; border-radius:8px; padding:14px 16px; flex:1 1 200px; max-width:300px; }}
+.mi-comp-header {{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }}
+.mi-comp-name {{ font-weight:600; color:#2c3e50; }}
+.mi-comp-type {{ padding:1px 8px; border-radius:10px; font-size:0.78em; font-weight:600; }}
+.mi-comp-type.brand {{ background:#eef2ff; color:#667eea; }}
+.mi-comp-type.category {{ background:#e8f8ef; color:#27ae60; }}
+.mi-comp-context {{ color:#666; font-size:0.88em; line-height:1.5; }}
+.mi-biz-list {{ display:flex; flex-direction:column; gap:12px; }}
+.mi-biz-card {{ display:flex; align-items:flex-start; gap:14px; background:#fff; border:1px solid #eee; border-radius:8px; padding:16px; transition:box-shadow 0.15s; }}
+.mi-biz-card:hover {{ box-shadow:0 2px 10px rgba(0,0,0,0.06); }}
+.mi-biz-rank {{ background:#667eea; color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9em; flex-shrink:0; }}
+.mi-biz-body {{ flex:1; }}
+.mi-biz-header {{ display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }}
+.mi-biz-category {{ font-weight:600; color:#2c3e50; font-size:1em; }}
+.mi-conf {{ padding:1px 8px; border-radius:10px; font-size:0.78em; font-weight:600; }}
+.mi-conf-high {{ background:#e8f8ef; color:#27ae60; }}
+.mi-conf-mid {{ background:#fef3e2; color:#b8860b; }}
+.mi-conf-low {{ background:#ffeef0; color:#c0392b; }}
+.mi-biz-rationale {{ color:#555; font-size:0.9em; line-height:1.6; }}
 @media (max-width:600px) {{ .header h1 {{ font-size:1.4em; }} .section {{ padding:16px; }} }}
 </style>
 </head>
@@ -1364,3 +1486,203 @@ def _cluster_topic_suggestions(clusters_data: Optional[dict]) -> list[dict]:
             "content_angle": f"围绕「{topic}」展开深度内容，该主题在评论区形成了{count}条相关讨论，表明用户对此有较高关注度",
         })
     return suggestions
+
+
+# ============================================================================
+# LLM 2 / LLM 3 结构化 HTML 渲染
+# ============================================================================
+
+
+def _render_copywriting_html(result: CopywritingResult) -> str:
+    """将 CopywritingResult 渲染为结构化 HTML 卡片。"""
+    parts: list[str] = []
+
+    # 选题标题
+    if result.selected_topic_title:
+        parts.append(
+            f'<p class="section-desc">基于选题 <strong>'
+            f'{html.escape(result.selected_topic_title)}</strong>'
+            f' 和真实用户评论生成的小红书文案：</p>'
+        )
+
+    # 标题
+    if result.title:
+        parts.append(
+            f'<div class="copy-title">{html.escape(result.title)}</div>'
+        )
+
+    # 引入钩子
+    if result.opening_hook:
+        parts.append(
+            f'<div class="copy-opening">'
+            f'<span class="copy-label">引入钩子</span>'
+            f'<p>{html.escape(result.opening_hook)}</p>'
+            f'</div>'
+        )
+
+    # 痛点 × 方案对照
+    if result.pain_point_solutions:
+        pp_html = '<div class="copy-pp-list">'
+        pp_html += '<span class="copy-label">痛点与解决方案</span>'
+        for item in result.pain_point_solutions:
+            pp_html += (
+                f'<div class="copy-pp-item">'
+                f'<span class="pp-pain">'
+                f'<span class="pp-icon">!</span> '
+                f'{html.escape(item.pain_point)}</span>'
+                f'<span class="pp-arrow">→</span>'
+                f'<span class="pp-solution">'
+                f'<span class="pp-icon">✓</span> '
+                f'{html.escape(item.solution)}</span>'
+                f'</div>'
+            )
+        pp_html += '</div>'
+        parts.append(pp_html)
+
+    # 干货要点
+    if result.dry_goods:
+        dg_html = '<div class="copy-drygoods">'
+        dg_html += '<span class="copy-label">干货要点</span>'
+        dg_html += '<ul class="copy-dg-list">'
+        for item in result.dry_goods:
+            dg_html += f'<li>{html.escape(item)}</li>'
+        dg_html += '</ul></div>'
+        parts.append(dg_html)
+
+    # 正文小节（灵活分段）
+    if result.body_sections:
+        for sec in result.body_sections:
+            heading_html = (
+                f'<h4 class="copy-sec-heading">{html.escape(sec.heading)}</h4>'
+                if sec.heading else ""
+            )
+            content_html = (
+                f'<p class="copy-sec-content">{html.escape(sec.content)}</p>'
+                if sec.content else ""
+            )
+            if heading_html or content_html:
+                parts.append(
+                    f'<div class="copy-section-block">{heading_html}{content_html}</div>'
+                )
+
+    # 互动钩子
+    if result.call_to_action:
+        parts.append(
+            f'<div class="copy-cta">'
+            f'<span class="copy-label">互动引导</span>'
+            f'<p>{html.escape(result.call_to_action)}</p>'
+            f'</div>'
+        )
+
+    # 话题标签
+    if result.hashtags:
+        tags_html = " ".join(
+            f'<span class="copy-tag">#{html.escape(t)}</span>'
+            for t in result.hashtags
+        )
+        parts.append(
+            f'<div class="copy-hashtags">{tags_html}</div>'
+        )
+
+    # 退化：LLM 没有返回任何结构化内容
+    if not parts:
+        return '<p class="empty">LLM 暂未生成有效文案内容</p>'
+
+    return "\n".join(parts)
+
+
+def _render_market_intel_html(result: MarketIntelligenceResult) -> str:
+    """将 MarketIntelligenceResult 渲染为结构化 HTML 卡片。"""
+    parts: list[str] = []
+
+    # 报告摘要
+    if result.executive_summary:
+        parts.append(
+            f'<div class="mi-summary">'
+            f'<h3>报告摘要</h3>'
+            f'<p>{html.escape(result.executive_summary)}</p>'
+            f'</div>'
+        )
+
+    # 产品痛点分析
+    if result.pain_point_analysis:
+        pp_html = '<div class="mi-section">'
+        pp_html += '<h3>产品痛点分析</h3>'
+        pp_html += '<div class="mi-table-wrap"><table class="mi-table">'
+        pp_html += (
+            '<thead><tr>'
+            '<th>痛点</th><th class="mi-sev-col">严重程度</th><th>用户原声</th>'
+            '</tr></thead>'
+        )
+        pp_html += '<tbody>'
+        for item in result.pain_point_analysis:
+            sev_class = (
+                "mi-sev-high" if item.severity == "高"
+                else "mi-sev-mid" if item.severity == "中"
+                else "mi-sev-low"
+            )
+            pp_html += (
+                f'<tr>'
+                f'<td>{html.escape(item.issue)}</td>'
+                f'<td class="mi-sev-col"><span class="mi-sev {sev_class}">'
+                f'{html.escape(item.severity)}</span></td>'
+                f'<td class="mi-voice">{html.escape(item.user_voice)}</td>'
+                f'</tr>'
+            )
+        pp_html += '</tbody></table></div></div>'
+        parts.append(pp_html)
+
+    # 热门替代品 / 竞品词云
+    if result.competitor_landscape:
+        comp_html = '<div class="mi-section">'
+        comp_html += '<h3>热门平替 / 竞品词云</h3>'
+        comp_html += '<div class="mi-comp-grid">'
+        for item in result.competitor_landscape:
+            type_badge = (
+                '<span class="mi-comp-type brand">品牌</span>'
+                if item.item_type == "品牌"
+                else '<span class="mi-comp-type category">品类</span>'
+            )
+            comp_html += (
+                f'<div class="mi-comp-card">'
+                f'<div class="mi-comp-header">'
+                f'<span class="mi-comp-name">{html.escape(item.name)}</span>'
+                f'{type_badge}'
+                f'</div>'
+                f'<p class="mi-comp-context">{html.escape(item.context)}</p>'
+                f'</div>'
+            )
+        comp_html += '</div></div>'
+        parts.append(comp_html)
+
+    # 商业变现 / 选品建议
+    if result.business_recommendations:
+        biz_html = '<div class="mi-section">'
+        biz_html += '<h3>商业变现 / 选品建议</h3>'
+        biz_html += '<div class="mi-biz-list">'
+        for idx, item in enumerate(result.business_recommendations, 1):
+            conf_class = (
+                "mi-conf-high" if item.confidence == "高"
+                else "mi-conf-mid" if item.confidence == "中"
+                else "mi-conf-low"
+            )
+            biz_html += (
+                f'<div class="mi-biz-card">'
+                f'<div class="mi-biz-rank">{idx}</div>'
+                f'<div class="mi-biz-body">'
+                f'<div class="mi-biz-header">'
+                f'<span class="mi-biz-category">{html.escape(item.category)}</span>'
+                f'<span class="mi-conf {conf_class}">信心：{html.escape(item.confidence)}</span>'
+                f'</div>'
+                f'<p class="mi-biz-rationale">{html.escape(item.rationale)}</p>'
+                f'</div>'
+                f'</div>'
+            )
+        biz_html += '</div></div>'
+        parts.append(biz_html)
+
+    # 退化：LLM 没有返回任何结构化内容
+    if not parts:
+        return '<p class="empty">LLM 暂未生成有效的商业情报</p>'
+
+    return "\n".join(parts)

@@ -17,6 +17,11 @@ from src.schemas import (
     ScoreCard,
 )
 from src.schemas.content_ideation import ContentIdeationResult
+from src.schemas.new_content_agents import (
+    CopywritingResult,
+    IdeationResult,
+    MarketIntelligenceResult,
+)
 from src.utils import AppPaths
 
 logger = logging.getLogger(__name__)
@@ -71,3 +76,30 @@ def save_content_ideation(result: ContentIdeationResult, paths: AppPaths) -> Non
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(result.model_dump(), f, ensure_ascii=False, indent=2)
     logger.info("persistence: 已保存 content_ideation 到 %s", output_path)
+
+
+def save_ideation(result: IdeationResult, paths: AppPaths) -> None:
+    """持久化 IdeationResult 到 data/outputs/ideation.json。"""
+    os.makedirs(paths.outputs_dir, exist_ok=True)
+    output_path = os.path.join(paths.outputs_dir, "ideation.json")
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(result.model_dump(), f, ensure_ascii=False, indent=2)
+    logger.info("persistence: 已保存 ideation 到 %s", output_path)
+
+
+def save_copywriting(result: CopywritingResult, paths: AppPaths) -> None:
+    """持久化 CopywritingResult 到 data/outputs/copywriting.json。"""
+    os.makedirs(paths.outputs_dir, exist_ok=True)
+    output_path = os.path.join(paths.outputs_dir, "copywriting.json")
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(result.model_dump(), f, ensure_ascii=False, indent=2)
+    logger.info("persistence: 已保存 copywriting 到 %s", output_path)
+
+
+def save_market_intelligence(result: MarketIntelligenceResult, paths: AppPaths) -> None:
+    """持久化 MarketIntelligenceResult 到 data/outputs/market_intelligence.json。"""
+    os.makedirs(paths.outputs_dir, exist_ok=True)
+    output_path = os.path.join(paths.outputs_dir, "market_intelligence.json")
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(result.model_dump(), f, ensure_ascii=False, indent=2)
+    logger.info("persistence: 已保存 market_intelligence 到 %s", output_path)

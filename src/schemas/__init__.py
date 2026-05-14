@@ -24,6 +24,17 @@ from src.schemas.content_ideation import (
     TitleSuggestion,
     TopicSuggestion,
 )
+from src.schemas.new_content_agents import (
+    BizRecommendation,
+    CompetitorItem,
+    CopywritingResult,
+    CopySection,
+    IdeationResult,
+    MarketIntelligenceResult,
+    PainPointItem,
+    PainPointSolution,
+    TopicIdea,
+)
 from src.schemas.report_review import ReportQualityReview
 
 __all__ = [
@@ -44,4 +55,13 @@ __all__ = [
     "ContentIdeationResult",
     "TopicSuggestion",
     "TitleSuggestion",
+    "IdeationResult",
+    "TopicIdea",
+    "CopywritingResult",
+    "CopySection",
+    "PainPointSolution",
+    "MarketIntelligenceResult",
+    "PainPointItem",
+    "CompetitorItem",
+    "BizRecommendation",
 ]

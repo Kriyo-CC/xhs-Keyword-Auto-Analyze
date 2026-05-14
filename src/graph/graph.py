@@ -3,9 +3,13 @@
 使用 StateGraph 定义 UGC Market Validator 的流水线。
 
 支持两种分析模式：
-- rule（默认）：原 8 节点 DAG（collect -> normalize -> sentiment -> insight -> score -> ideate_content -> report）
+- rule（默认）：collect -> normalize -> sentiment -> insight -> score
+  -> (Route A: ideate_specialist -> copywriting_expert) + (Route B: market_intelligence)
+  -> report
 - llm_annotation：LLM 评论级语义标注 + 聚合（collect -> normalize -> annotate_comments ->
-  sentiment_from_annotations -> insight_from_annotations -> score -> ideate_content -> report）
+  sentiment_from_annotations -> insight_from_annotations -> score
+  -> (Route A: ideate_specialist -> copywriting_expert) + (Route B: market_intelligence)
+  -> report）
 """
 
 from __future__ import annotations
@@ -18,8 +22,10 @@ from src.adapters.base import BaseAdapter
 from src.graph.nodes import (
     create_annotate_comments_node,
     create_collect_node,
-    create_ideate_content_node,
+    create_copywriting_expert_node,
+    create_ideate_specialist_node,
     create_insight_node,
+    create_market_intelligence_node,
     create_normalize_node,
     create_report_node,
     create_score_node,
@@ -67,7 +73,9 @@ def build_ugc_market_graph(
         builder.add_node("sentiment", create_sentiment_node())
         builder.add_node("insight", create_insight_node(paths=paths))
         builder.add_node("score", create_score_node(paths=paths))
-        builder.add_node("ideate_content", create_ideate_content_node(llm_client, paths=paths))
+        builder.add_node("ideate_specialist", create_ideate_specialist_node(llm_client, paths=paths))
+        builder.add_node("copywriting_expert", create_copywriting_expert_node(llm_client, paths=paths))
+        builder.add_node("market_intelligence", create_market_intelligence_node(llm_client, paths=paths))
         builder.add_node("report", create_report_node(paths=paths))
 
         # rule 边
@@ -76,8 +84,12 @@ def build_ugc_market_graph(
         builder.add_edge("normalize", "sentiment")
         builder.add_edge("sentiment", "insight")
         builder.add_edge("insight", "score")
-        builder.add_edge("score", "ideate_content")
-        builder.add_edge("ideate_content", "report")
+        # 两条并行路线：Route A（选题 + 文案）, Route B（商业情报）
+        builder.add_edge("score", "ideate_specialist")
+        builder.add_edge("score", "market_intelligence")
+        builder.add_edge("ideate_specialist", "copywriting_expert")
+        builder.add_edge("copywriting_expert", "report")
+        builder.add_edge("market_intelligence", "report")
         builder.add_edge("report", END)
 
     elif analysis_mode == "llm_annotation":
@@ -93,7 +105,9 @@ def build_ugc_market_graph(
         builder.add_node("sentiment_from_annotations", sentiment_from_annotations_node)
         builder.add_node("insight_from_annotations", insight_from_annotations_node)
         builder.add_node("score", create_score_node(paths=paths))
-        builder.add_node("ideate_content", create_ideate_content_node(llm_client, paths=paths))
+        builder.add_node("ideate_specialist", create_ideate_specialist_node(llm_client, paths=paths))
+        builder.add_node("copywriting_expert", create_copywriting_expert_node(llm_client, paths=paths))
+        builder.add_node("market_intelligence", create_market_intelligence_node(llm_client, paths=paths))
         builder.add_node("report", create_report_node(paths=paths))
 
         builder.add_edge(START, "collect")
@@ -102,8 +116,12 @@ def build_ugc_market_graph(
         builder.add_edge("annotate_comments", "sentiment_from_annotations")
         builder.add_edge("sentiment_from_annotations", "insight_from_annotations")
         builder.add_edge("insight_from_annotations", "score")
-        builder.add_edge("score", "ideate_content")
-        builder.add_edge("ideate_content", "report")
+        # 两条并行路线：Route A（选题 + 文案）, Route B（商业情报）
+        builder.add_edge("score", "ideate_specialist")
+        builder.add_edge("score", "market_intelligence")
+        builder.add_edge("ideate_specialist", "copywriting_expert")
+        builder.add_edge("copywriting_expert", "report")
+        builder.add_edge("market_intelligence", "report")
         builder.add_edge("report", END)
 
     else:

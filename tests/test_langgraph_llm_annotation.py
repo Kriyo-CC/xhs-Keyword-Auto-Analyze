@@ -159,7 +159,7 @@ class TestBuildGraphModes(unittest.TestCase):
         graph = build_ugc_market_graph(analysis_mode="rule")
         expected = {
             "collect", "normalize", "sentiment", "insight", "score",
-            "ideate_content", "report",
+            "ideate_specialist", "copywriting_expert", "market_intelligence", "report",
         }
         actual = self._user_nodes(graph)
         self.assertEqual(expected, actual, "rule 模式的节点集合应包含所有标准节点")

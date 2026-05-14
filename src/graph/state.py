@@ -20,6 +20,11 @@ from src.schemas import (
 )
 from src.schemas.content_ideation import ContentIdeationResult
 from src.schemas.llm_records import CommentAnnotationRecord
+from src.schemas.new_content_agents import (
+    CopywritingResult,
+    IdeationResult,
+    MarketIntelligenceResult,
+)
 from src.utils import AppPaths
 
 
@@ -35,6 +40,11 @@ class UGCGraphState(BaseModel):
 
     comment_annotations: llm_annotation 模式下由 annotate_comments_node 填充。
     rule 模式下为 None。
+
+    新版内容 Agent 产物（替换旧 content_ideation_result）：
+    - ideation_result: LLM 1 爆款选题策划结果
+    - copywriting_result: LLM 2 小红书文案
+    - market_intelligence_result: LLM 3 商业情报报告
     """
 
     request: AnalysisRequest
@@ -46,6 +56,9 @@ class UGCGraphState(BaseModel):
     scorecard: ScoreCard | None = None
     comment_annotations: list[CommentAnnotationRecord] | None = None
     content_ideation_result: ContentIdeationResult | None = None
+    ideation_result: IdeationResult | None = None
+    copywriting_result: CopywritingResult | None = None
+    market_intelligence_result: MarketIntelligenceResult | None = None
     report_path: str | None = None
     success: bool = False
     report_generated: bool = False

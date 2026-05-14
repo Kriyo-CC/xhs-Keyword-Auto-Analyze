@@ -24,11 +24,16 @@ from src.agents import (
     SourceAgent,
 )
 from src.agents.annotation_aggregator import AnnotationAggregator
-from src.agents.content_ideation_agent import ContentIdeationAgent
+from src.agents.copywriting_expert import CopywritingExpert
+from src.agents.ideation_specialist import IdeationSpecialist
 from src.agents.llm_comment_analyzer_agent import LLMCommentAnalyzerAgent
+from src.agents.market_intelligence import MarketIntelligenceAnalyst
 from src.graph.persistence import (
     save_content_ideation,
+    save_copywriting,
+    save_ideation,
     save_insights,
+    save_market_intelligence,
     save_normalized_dataset,
     save_raw_dataset,
     save_scorecard,
@@ -200,6 +205,9 @@ def create_report_node(agent: Optional[ReportAgent] = None, paths: Optional[AppP
             topic=state.request.topic,
             product_direction=state.request.product_direction,
             content_ideation_result=state.content_ideation_result,
+            ideation_result=state.ideation_result,
+            copywriting_result=state.copywriting_result,
+            market_intelligence_result=state.market_intelligence_result,
         )
 
         logger.info("[Graph] report_node: 报告已生成 %s", result.report_path)
@@ -242,44 +250,122 @@ def create_annotate_comments_node(llm_client, use_concurrent: bool = True):
     return annotate_comments_node
 
 
-def create_ideate_content_node(llm_client, paths: Optional[AppPaths] = None):
-    """创建 ideate_content node。
+# ============================================================================
+# 新版内容 Agent 节点（LLM 1 / LLM 2 / LLM 3）
+# ============================================================================
 
-    在 score 之后、report 之前调用 ContentIdeationAgent。
+
+def create_ideate_specialist_node(llm_client, paths: Optional[AppPaths] = None):
+    """创建 ideate_specialist node（LLM 1：爆款选题与内容策划专家）。
+
+    在 score 之后调用，使用 insights + posts 数据生成 3-5 个爆款选题。
     llm_client 通过闭包注入。
     """
 
-    def ideate_content_node(state: UGCGraphState) -> dict[str, Any]:
-        logger.info("[Graph] ideate_content_node: 开始 LLM 内容选题生成")
-        if not state.insights or not state.scorecard or not state.normalized_dataset:
-            raise ValueError("ideate_content_node: 必要输入为空")
+    def ideate_specialist_node(state: UGCGraphState) -> dict[str, Any]:
+        logger.info("[Graph] ideate_specialist_node: 开始 LLM 爆款选题策划")
+        if not state.insights or not state.normalized_dataset:
+            raise ValueError("ideate_specialist_node: 必要输入为空")
 
-        agent = ContentIdeationAgent(
+        agent = IdeationSpecialist(
             llm_client=llm_client,
             keyword=state.request.topic,
         )
 
-        # 调用业务函数（纯逻辑）
         result = agent.execute(
             insight=state.insights,
-            scorecard=state.scorecard,
-            dataset=state.normalized_dataset,
+            posts=list(state.normalized_dataset.posts),
             keyword=state.request.topic,
         )
 
-        # 持久化
         effective_paths = paths or state.paths
-        save_content_ideation(result, effective_paths)
+        save_ideation(result, effective_paths)
 
         logger.info(
-            "[Graph] ideate_content_node: topics=%d, titles=%d, mode=%s",
-            len(result.topic_suggestions),
-            len(result.custom_title_suggestions),
-            result.generation_mode,
+            "[Graph] ideate_specialist_node: 生成 %d 个选题",
+            len(result.topic_ideas),
         )
-        return {"content_ideation_result": result}
+        return {"ideation_result": result}
 
-    return ideate_content_node
+    return ideate_specialist_node
+
+
+def create_copywriting_expert_node(llm_client, paths: Optional[AppPaths] = None):
+    """创建 copywriting_expert node（LLM 2：小红书"网感"文案写手）。
+
+    在 ideate_specialist 之后调用，基于 LLM 1 的第一个选题 + 评论数据生成文案。
+    llm_client 通过闭包注入。
+    """
+
+    def copywriting_expert_node(state: UGCGraphState) -> dict[str, Any]:
+        logger.info("[Graph] copywriting_expert_node: 开始 LLM 文案生成")
+        if not state.ideation_result or not state.normalized_dataset:
+            raise ValueError("copywriting_expert_node: 必要输入为空")
+
+        topic_ideas = state.ideation_result.topic_ideas
+        if not topic_ideas:
+            logger.warning("[Graph] copywriting_expert_node: 无选题数据，跳过")
+            return {"copywriting_result": None}
+
+        # 只取 LLM 1 的第一个选题来生成文案
+        selected_topic = topic_ideas[0]
+        logger.info("[Graph] copywriting_expert_node: 选定选题 '%s'", selected_topic.topic_title)
+
+        agent = CopywritingExpert(llm_client=llm_client)
+
+        result = agent.execute(
+            selected_topic=selected_topic,
+            comments=list(state.normalized_dataset.comments),
+        )
+
+        effective_paths = paths or state.paths
+        save_copywriting(result, effective_paths)
+
+        logger.info(
+            "[Graph] copywriting_expert_node: title=%s, pain_points=%d, dry_goods=%d",
+            result.title[:30] if result.title else "(空)",
+            len(result.pain_point_solutions),
+            len(result.dry_goods),
+        )
+        return {"copywriting_result": result}
+
+    return copywriting_expert_node
+
+
+def create_market_intelligence_node(llm_client, paths: Optional[AppPaths] = None):
+    """创建 market_intelligence node（LLM 3：产品口碑与竞品情报分析师）。
+
+    在 score 之后调用，与 Route A 并行运行。
+    使用 insights + 评论数据生成商业情报报告。
+    llm_client 通过闭包注入。
+    """
+
+    def market_intelligence_node(state: UGCGraphState) -> dict[str, Any]:
+        logger.info("[Graph] market_intelligence_node: 开始 LLM 商业情报分析")
+        if not state.insights or not state.normalized_dataset:
+            raise ValueError("market_intelligence_node: 必要输入为空")
+
+        agent = MarketIntelligenceAnalyst(llm_client=llm_client)
+
+        result = agent.execute(
+            insight=state.insights,
+            comments=list(state.normalized_dataset.comments),
+        )
+
+        effective_paths = paths or state.paths
+        save_market_intelligence(result, effective_paths)
+
+        logger.info(
+            "[Graph] market_intelligence_node: summary=%d字, pain_points=%d, "
+            "competitors=%d, recommendations=%d",
+            len(result.executive_summary),
+            len(result.pain_point_analysis),
+            len(result.competitor_landscape),
+            len(result.business_recommendations),
+        )
+        return {"market_intelligence_result": result}
+
+    return market_intelligence_node
 
 
 # ============================================================================
